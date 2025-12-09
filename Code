@@ -1,0 +1,285 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+struct Student {
+char rollNo[20];
+char name[50];
+float marks;
+char grade;
+};
+// Function prototypes
+void addStudent();
+void viewStudents();
+void searchStudent();
+void updateStudent();
+void deleteStudent();
+char calculateGrade(float marks);
+// Helper validation functions
+int isValidAlphanumeric(const char *str) {
+if (*str == '\0') return 0; // empty string not allowed
+while (*str) {
+if (!isalnum(*str)) return 0;
+str++;
+}
+return 1;
+}
+int isValidFloat(const char *str) {
+if (*str == '\0') return 0;
+int hasDecimal = 0;
+// Optional leading + or -
+if (*str == '+' || *str == '-') str++;
+if (*str == '\0') return 0;
+while (*str) {
+if (*str == '.') {
+if (hasDecimal) return 0; // second decimal point
+hasDecimal = 1;
+} else if (!isdigit(*str)) {
+return 0;
+}
+str++;
+}
+return 1;
+}
+int isValidName(const char *str) {
+if (*str == '\0') return 0; // empty string not allowed
+while (*str) {
+if (!isalpha(*str) && !isspace(*str)) return 0;
+str++;
+}
+return 1;
+}
+int readRollNumber(const char* prompt, char *outRollNo, size_t maxLen) {
+char buffer[100];
+while (1) {
+printf("%s", prompt);
+if (!fgets(buffer, sizeof(buffer), stdin)) {
+return 0;
+}
+buffer[strcspn(buffer, "\n")] = 0; // remove newline
+if (isValidAlphanumeric(buffer) && strlen(buffer) < maxLen) {
+strncpy(outRollNo, buffer, maxLen);
+outRollNo[maxLen - 1] = '\0';
+return 1;
+}
+printf("Invalid input. Please enter alphanumeric characters only.\n");
+}
+}
+int readFloat(const char* prompt, float *outValue) {
+char buffer[100];
+while (1) {
+printf("%s", prompt);
+if (!fgets(buffer, sizeof(buffer), stdin)) {
+return 0;
+}
+buffer[strcspn(buffer, "\n")] = 0; // remove newline
+if (isValidFloat(buffer)) {
+*outValue = strtof(buffer, NULL);
+return 1;
+}
+printf("Invalid input. Please enter a valid number.\n");
+}
+}
+int readName(const char* prompt, char *outName, size_t maxLen) {
+char buffer[100];
+while (1) {
+printf("%s", prompt);
+if (!fgets(buffer, sizeof(buffer), stdin)) {
+return 0;
+}
+buffer[strcspn(buffer, "\n")] = 0; // remove newline
+if (isValidName(buffer) && strlen(buffer) < maxLen) {
+strncpy(outName, buffer, maxLen);
+outName[maxLen - 1] = '\0';
+return 1;
+}
+printf("Invalid input. Please enter letters and spaces only.\n");
+}
+}
+int main() {
+int choice;
+do {
+printf("\n*** Student Record Management System ***\n");
+printf("1. Add Student\n");
+printf("2. View All Students\n");
+printf("3. Search Student by Roll Number\n");
+printf("4. Update Student\n");
+printf("5. Delete Student\n");
+printf("6. Exit\n");
+printf("Enter your choice: ");
+if (scanf("%d", &choice) != 1) {
+printf("Invalid input. Please enter a number between 1 and 6.\n");
+while (getchar() != '\n'); // clear input buffer
+continue;
+}
+while (getchar() != '\n'); // clear leftover newline
+switch (choice) {
+case 1: addStudent(); break;
+case 2: viewStudents(); break;
+case 3: searchStudent(); break;
+case 4: updateStudent(); break;
+case 5: deleteStudent(); break;
+case 6: printf("Exiting...\n"); break;
+default: printf("Invalid choice!\n");
+}
+} while (choice != 6);
+return 0;
+}
+char calculateGrade(float marks) {
+if (marks >= 90) return 'A';
+else if (marks >= 75) return 'B';
+else if (marks >= 60) return 'C';
+else if (marks >= 40) return 'D';
+else return 'F';
+}
+void addStudent() {
+FILE *fp = fopen("students.dat", "ab");
+if (fp == NULL) {
+printf("Error opening file!\n");
+return;
+}
+struct Student s;
+if (!readRollNumber("Enter Roll Number: ", s.rollNo, sizeof(s.rollNo))) {
+printf("Error reading roll number.\n");
+fclose(fp);
+return;
+}
+if (!readName("Enter Name: ", s.name, sizeof(s.name))) {
+printf("Error reading name.\n");
+fclose(fp);
+return;
+}
+if (!readFloat("Enter Marks: ", &s.marks)) {
+printf("Error reading marks.\n");
+fclose(fp);
+return;
+}
+s.grade = calculateGrade(s.marks);
+fwrite(&s, sizeof(struct Student), 1, fp);
+fclose(fp);
+printf("Student added successfully.\n");
+}
+void viewStudents() {
+FILE *fp = fopen("students.dat", "rb");
+if (fp == NULL) {
+printf("Error opening file!\n");
+return;
+}
+struct Student s;
+int count = 0;
+printf("\n--- All Students ---\n");
+while (fread(&s, sizeof(struct Student), 1, fp)) {
+printf("Roll No: %s\nName: %s\nMarks: %.2f\nGrade: %c\n\n",
+s.rollNo, s.name, s.marks, s.grade);
+count++;
+}
+if (count == 0) {
+printf("No records found.\n");
+}
+fclose(fp);
+}
+void searchStudent() {
+FILE *fp = fopen("students.dat", "rb");
+if (fp == NULL) {
+printf("Error opening file!\n");
+return;
+}
+struct Student s;
+char roll[20];
+int found = 0;
+if (!readRollNumber("Enter Roll Number to Search: ", roll, sizeof(roll))) {
+printf("Error reading roll number.\n");
+fclose(fp);
+return;
+}
+while (fread(&s, sizeof(struct Student), 1, fp)) {
+if (strcmp(s.rollNo, roll) == 0) {
+printf("\n--- Student Found ---\n");
+printf("Roll No: %s\nName: %s\nMarks: %.2f\nGrade: %c\n",
+s.rollNo, s.name, s.marks, s.grade);
+found = 1;
+break;
+}
+}
+if (!found) {
+printf("Student not found.\n");
+}
+fclose(fp);
+}
+void updateStudent() {
+FILE *fp = fopen("students.dat", "rb+");
+if (fp == NULL) {
+printf("Error opening file!\n");
+return;
+}
+struct Student s;
+char roll[20];
+int found = 0;
+if (!readRollNumber("Enter Roll Number to Update: ", roll, sizeof(roll))) {
+printf("Error reading roll number.\n");
+fclose(fp);
+return;
+}
+while (fread(&s, sizeof(struct Student), 1, fp)) {
+if (strcmp(s.rollNo, roll) == 0) {
+fseek(fp, -sizeof(struct Student), SEEK_CUR);
+if (!readName("Enter New Name: ", s.name, sizeof(s.name))) {
+printf("Error reading name.\n");
+fclose(fp);
+return;
+}
+if (!readFloat("Enter New Marks: ", &s.marks)) {
+printf("Error reading marks.\n");
+fclose(fp);
+return;
+}
+s.grade = calculateGrade(s.marks);
+fwrite(&s, sizeof(struct Student), 1, fp);
+found = 1;
+printf("Student updated successfully.\n");
+break;
+}
+}
+if (!found) {
+printf("Student not found.\n");
+}
+fclose(fp);
+}
+void deleteStudent() {
+FILE *fp = fopen("students.dat", "rb");
+if (fp == NULL) {
+printf("Error opening file!\n");
+return;
+}
+FILE *temp = fopen("temp.dat", "wb");
+if (temp == NULL) {
+printf("Error opening temporary file!\n");
+fclose(fp);
+return;
+}
+struct Student s;
+char roll[20];
+int found = 0;
+if (!readRollNumber("Enter Roll Number to Delete: ", roll, sizeof(roll))) {
+printf("Error reading roll number.\n");
+fclose(fp);
+fclose(temp);
+return;
+}
+while (fread(&s, sizeof(struct Student), 1, fp)) {
+if (strcmp(s.rollNo, roll) != 0) {
+fwrite(&s, sizeof(struct Student), 1, temp);
+} else {
+found = 1;
+}
+}
+fclose(fp);
+fclose(temp);
+remove("students.dat");
+rename("temp.dat", "students.dat");
+if (found) {
+printf("Student deleted successfully.\n");
+} else {
+printf("Student not found.\n");
+}
+}
